@@ -106,7 +106,11 @@ export default function Layout({ children }) {
           setIsUpdatingDocs={setIsUpdatingDocs}
         />
       )}
-      <main className={`${isMainPage ? "mt-[4.5rem] cstm-min-h" : ""}`}>
+      <main
+        className={`text-gray-700 ${
+          isMainPage ? "mt-[4.5rem] cstm-min-h" : ""
+        }`}
+      >
         {childerenWithProps}
       </main>
       {isMainPage && <Footer />}

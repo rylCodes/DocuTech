@@ -5,5 +5,5 @@ export const server = dev
   : "http://somewebsitedomain.com";
 
 // export const server = dev
-// ? "http://ryltechdocs.test"
-// : "http://somewebsitedomain.com";
+//   ? "http://docutech-backend.test"
+//   : "http://somewebsitedomain.com";

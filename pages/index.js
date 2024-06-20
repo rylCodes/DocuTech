@@ -1,39 +1,75 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import axios from "axios";
+import Link from "next/link";
+import Meta from "@/components/Meta";
 import Hero from "@/components/ui/Hero";
 import CallToAction from "@/components/ui/CallToAction";
 import Overview from "@/components/ui/Overview";
-import { useState } from "react";
-import Meta from "@/components/Meta";
-import axios from "axios";
-import { server } from "@/config";
-import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
-
-let isFetching = false;
+import { server } from "@/config";
 
 export default function Home(props) {
+  const { isAuthenticated } = useAuth();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [documentations, setDocumentations] = useState(props.documentations);
-  const { isAuthenticated } = useAuth();
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  async function onSearchDocumentation() {
-    if (query.trim() === "") {
-      setDocumentations(props.documentations);
-      return;
+  const observer = useRef();
+
+  const lastDocumentationElementRef = useCallback(
+    (node) => {
+      if (loading) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPage((prevPage) => prevPage + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loading, hasMore]
+  );
+
+  useEffect(() => {
+    const loadDocumentations = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`${server}/api/documentations`, {
+          params: { query, page, pageSize: 5 },
+        });
+        setDocumentations((prevDocs) => {
+          return [...prevDocs, ...response.data.data];
+        });
+        setHasMore(response.data.data.length > 0);
+      } catch (error) {
+        console.error("Failed to fetch documentations:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (page > 1) {
+      loadDocumentations();
     }
+  }, [page, query]);
 
+  const onSearchDocumentation = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`${server}/api/documentations`, {
-        params: { query },
+        params: { query, page: 1, pageSize: 5 },
       });
-      setDocumentations(response.data);
+      setDocumentations(response.data.data);
+      setPage(1);
+      setHasMore(response.data.data.length > 0);
     } catch (error) {
       console.error("Failed to fetch results:", error);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <div>
@@ -43,20 +79,12 @@ export default function Home(props) {
         query={query}
         setQuery={setQuery}
       />
-      <div className="container max-w-7xl mx-auto px-4">
-        {(!isFetching || !loading) && documentations.length > 0 ? (
-          <Overview documentations={documentations} />
-        ) : (
-          <div className="flex flex-col items-center justify-center w-full my-32">
-            <img className="w-96 h-auto" src="/undraw_add_files.svg" />
-            <Link
-              className="mt-12 px-4 py-2 rounded-lg border border-teal-500 text-teal-500 hover:opacity-50 transition-all duration-300"
-              href={"/create"}
-            >
-              Create documentation
-            </Link>
-          </div>
-        )}
+      <div className="container max-w-7xl mx-auto px-4 min-h-[75vh] py-12">
+        <Overview
+          documentations={documentations}
+          lastDocumentationElementRef={lastDocumentationElementRef}
+          loading={loading}
+        />
       </div>
       <CallToAction isAuthenticated={isAuthenticated} />
     </div>
@@ -64,10 +92,11 @@ export default function Home(props) {
 }
 
 export async function getStaticProps() {
-  isFetching = true;
   try {
-    const response = await axios.get(server + "/api/documentations");
-    const documentations = await response.data;
+    const response = await axios.get(`${server}/api/documentations`, {
+      params: { page: 1, pageSize: 5 },
+    });
+    const documentations = await response.data.data;
 
     return {
       props: {
@@ -81,7 +110,5 @@ export async function getStaticProps() {
         documentations: [],
       },
     };
-  } finally {
-    isFetching = false;
   }
 }

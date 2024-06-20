@@ -20,10 +20,12 @@ import {
 } from "react-icons/fa6";
 import { Toast } from "@/utils/Toast";
 
-export default function manageDocumentation(props) {
+export default function manageDocumentation() {
   const [query, setQuery] = useState("");
   const [fetching, setFetching] = useState(true);
   const [documentations, setDocumentations] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const { isAuthenticated, token } = useAuth();
   const router = useRouter();
 
@@ -37,10 +39,11 @@ export default function manageDocumentation(props) {
     async function getDocumentationsById() {
       try {
         const response = await axios.get(
-          `${server}/api/documentations/user/${storedUserId}`
+          `${server}/api/documentations/user/${storedUserId}?page=${currentPage}`
         );
         const results = await response.data;
-        setDocumentations(results);
+        setDocumentations(results.data);
+        setTotalPages(results.last_page);
       } catch (error) {
         console.error("Failed to fetch documentations", error);
         if (error.message) {
@@ -52,7 +55,7 @@ export default function manageDocumentation(props) {
     }
 
     getDocumentationsById();
-  }, []);
+  }, [currentPage]);
 
   async function deleteDocumentation(documentationId) {
     swal({
@@ -89,6 +92,12 @@ export default function manageDocumentation(props) {
         return;
       }
     });
+  }
+
+  function handlePageChange(newPage) {
+    if (newPage > 0 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
   }
 
   return (
@@ -159,9 +168,14 @@ export default function manageDocumentation(props) {
                           <FaArrowDown className="size-5 text-teal-500 md:size-6" />
                         ))}
                     </div>
-                    <h3 className="text-xl font-bold md:2xl w-full">
-                      {documentation.title}
-                    </h3>
+                    <div className="flex flex-col gap-1 w-full whitespace-nowrap overflow-x-hidden">
+                      <h3 className="text-xl font-bold md:2xl overflow-ellipsis overflow-x-hidden">
+                        {documentation.title}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {documentation.author}
+                      </p>
+                    </div>
                   </div>
                   <p className="mt-4 w-full">{documentation.description}</p>
                 </Link>
@@ -184,6 +198,25 @@ export default function manageDocumentation(props) {
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            <div className="flex justify-center gap-4 mt-8">
+              <button
+                className="px-4 py-2 bg-teal-500 text-white rounded disabled:opacity-50"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2">{`Page ${currentPage} of ${totalPages}`}</span>
+              <button
+                className="px-4 py-2 bg-teal-500 text-white rounded disabled:opacity-50"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
           </section>
         )}
       </div>
